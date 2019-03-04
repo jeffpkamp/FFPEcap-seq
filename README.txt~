@@ -2,20 +2,10 @@
      INSTALLATION
 ########################
 
-You can install the program in two ways.
+If you used get_FFPEcapseq.sh everything should be ready!
 
+The program is installed at at $HOME/FFPEcapseq/bin
 
-1)Download get_FFPEcapseq.sh and run it with the following command:
-bash get_FFPEcapseq.sh
-
-2)Download the git repository and place it in your home directory.
-
-Once this is done, you can move the file FFPEcapseq.sh from the bin directory
-to any where and run it from there.   
-
-Indexes should be added to the FFPEcapseq folder in your home directory.
-These can be symbolic links.  The folder containing these indexes should be
-named after the genome name you wish to use.  ie hg19.
 
 
 #############################
@@ -57,8 +47,7 @@ Optional:
          EXAMPLE
 #########################
 
-For data set containing the following files:  
-short1.fastq.gz short2.fastq.gz short3.fastq.gz
+For data set containing the following files:  short1.fastq.gz short2.fastq.gz short3.fastq.gz
 
 you would use the following command
 
