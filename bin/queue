@@ -1,0 +1,28 @@
+#!/bin/bash
+
+cores="$2"
+nc=$(wc -l "$1"| awk '{print $1}')
+n=0
+echo "Starting $nc jobs using $cores cores" > /dev/stderr
+while read -r line
+	do 
+		while [[ $(jobs | wc -l | awk '{print $1}') -ge "$cores" ]]
+			do 
+			jobs > /dev/null
+			printf "%s/%s jobs\r" "$n" "$nc" > /dev/stderr
+			sleep 10 
+		done
+		eval "$line" &
+		n=$((n+1))
+	done < "$1"
+
+
+while [[ $(jobs | wc -l) -gt 0 ]]
+	do
+	jobs > /dev/null
+	printf "$(jobs | wc -l) remaining\r" > /dev/stderr
+	sleep 5
+done
+
+echo "Jobs Complete" > /dev/stderr
+		
