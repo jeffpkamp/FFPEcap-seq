@@ -4,7 +4,6 @@
 
 You can install the program in two ways.
 
-
 1)Download get_FFPEcapseq.sh and run it with the following command:
 bash get_FFPEcapseq.sh
 
@@ -18,6 +17,7 @@ These can be symbolic links.  The folder containing these indexes should be
 named after the genome name you wish to use.  ie hg19.
 
 
+
 #############################
   How to run the program
 #############################
@@ -28,7 +28,7 @@ Run the program with:
 
 FFPEcapseq.sh -h
 
-USAGE:  FFPEcapseq.sh -c common_name [-g -u -p -get]
+USAGE:  FFPEcapseq.sh -c common_name -g genome [ -u -p -get ]
 
 Argument options
 
@@ -37,11 +37,12 @@ Required:
 	or a space separated list of fastqs belonging
 	to the same experiment
 
-Optional:
--g 	eneter a genome name. Default:hg19
+-g 	eneter a genome name.
 	Currently there are indexes build for
 	hg19, hg38, mm10, and Scerv
 
+
+Optional:
 -u	UMIs present, Default=True, 
 	set to False if no UMIs
 
@@ -57,8 +58,7 @@ Optional:
          EXAMPLE
 #########################
 
-For data set containing the following files:  
-short1.fastq.gz short2.fastq.gz short3.fastq.gz
+For data set containing the following files:  short1.fastq.gz short2.fastq.gz short3.fastq.gz
 
 you would use the following command
 
@@ -77,7 +77,7 @@ http://home.chpc.utah.edu/~u6004424/FFPEcapseq_support/indexes
 
 Program will automatically download indexes if they are availabe.
 
-To build your own indexes, download the genome.fa and Refmran.fa 
+To build your own indexes, download the genome.fa and Refmrna.fa 
 from http://hgdownload.soe.ucsc.edu/downloads.html .
 
 Use bowtie-build to build the indexes for each and place them in a directory

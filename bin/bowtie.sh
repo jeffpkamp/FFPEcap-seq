@@ -5,10 +5,11 @@ genome="$2"
 cores="$3"
 UMI="$4"
 name=${fastq//.*/}
+cleanup="$5"
 [[ ! -d $name ]] && mkdir ./"$name"
 
 #this stops you from blowing out your ram while sorting
-sort_mem=$(python -c "from psutil import virtual_memory; print(str(int(0.9*(virtual_memory().available/1000000)/$cores))+'M')")
+sort_mem=$(python -c "from psutil import virtual_memory; print(str(int(0.75*(virtual_memory().available/1000000)/$cores))+'M')")
 echo "$sort_mem" Memory available
 
 # unzip file into a temporary file (leaves fastq.gz)
@@ -51,7 +52,10 @@ if [[ ! -e "$name"/"$name"\_sorted_refseq.sam ]]
 fi
 
 
-echo "REMOVING $fastq"
 
-rm "$fastq"
+if [[ $cleanup ]]
+then
+	echo "REMOVING $fastq"
+	rm "$fastq"
+fi
 

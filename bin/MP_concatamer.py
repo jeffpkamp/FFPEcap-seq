@@ -100,9 +100,14 @@ def get_con(in_file,running,memory_usage):
 
 	myprint("parsing seq data:", in_file)
 	l=[]
+	import math
 	t=time.time()
-	for b in range(0,len(data),int(len(data)/10)):
-		l.append(data[b:b+int(len(data)/10)])
+	if len(data)/10==0:
+		myvar=1
+	else:
+		myvar=len(data)/10
+	for b in range(0,len(data),int(myvar)):
+		l.append(data[b:b+int(myvar)])
 	length=len(data)
 	del data
 	p=multiprocessing.Pool(10)
@@ -141,7 +146,7 @@ for item in argv:
 	n+=1
 	p.start()
 	time.sleep(1)
-	while (running.value > 0):
+	if (running.value > 0):###This should be if, not while!
 		myprint("Available Memory:",psutil.virtual_memory().available/1000000000.0)
 		myprint("Running Process:")
 		for x in list(processes.keys()):

@@ -94,7 +94,8 @@ get_flags () {
 	END{
 		quit=0
 		if ("-h" in flag) {
-			print "[[ $(type usage 2> /dev/null) =~ function ]] && usage || [[ -z $usage ]] || echo -e $usage; exit 1"
+			print "echo;"
+			print "[[ $(type -t usage 2> /dev/null) =~ function ]] && usage || [[ -z $usage ]] || echo -e $usage; exit 1"
 			exit 0
 		}
 		for (x in mandatory_keys) {
@@ -110,7 +111,8 @@ get_flags () {
 			}
 		}
 		if (quit > 0) {
-			print "[[ $(type usage 2> /dev/null) =~ function ]] && usage || [[ -z $usage ]] || echo -e $usage; exit 1"
+			print "echo;"
+			print "[[ $(type -t usage 2> /dev/null) =~ function ]] && usage || [[ -z $usage ]] || echo -e $usage; exit 1"
 			exit 1
 		}
 		for (x in optional_keys) {

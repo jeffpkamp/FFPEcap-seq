@@ -1,12 +1,11 @@
 #!/bin/bash
 
-if [[ $(uname) == Darwin ]]
-then
-	split="$HOME/FFPEcapseq/bin/gsplit"
-else 
-	split=$(command -v split)
-fi
-
+#if [[ $(uname) == Darwin ]]
+#then
+#	split="$HOME/FFPEcapseq/bin/gsplit"
+#else 
+#	split=$(command -v split)
+#fi
 
 if [[ -z "$1" ]]
 then 
@@ -29,14 +28,16 @@ done
 
 for x in "$common"*.*
 	do if [[ "$x" =~ .gz$ ]] 
-		then 
-		if [[ ! -e Concatamer_summary.tab || ( ! -e UMI_"$x" && ! -e UMI_${x/.gz/} ) ]]
 			then 
+			if [[ ! -e Concatamer_summary.tab ]] || [[ $umi == True && ! -e UMI_"$x" && ! -e UMI_${x/.gz/} ]] || [[ ! $umi == True && ! -e Trimmed_"$x" && ! -e Trimmed_${x/.gz/} ]]
+			then
 			echo "Unzipping $x" > /dev/stderr
 			if [[ -e ${x/.gz/} ]]
 				then continue
 			fi
-			gunzip -c "$x" > "${x/.gz/}";
+			[[ $(type pigz 2>/dev/null) ]] && pigz -d -p "$cores" -c "$x" > "${x/.gz/}" || gunzip -c "$x" > "${x/.gz/}"
+		else
+			echo "Fastq already modified for $x" > /dev/stderr
 		fi
 	fi
 done
@@ -63,44 +64,66 @@ if [[ ! -e Concatamer_summary.tab ]]
 				break
 		}
 	}' Contamination_sequences.txt > tmp; mv tmp Contamination_sequences.txt
+
+	echo "Contamination Done" > /dev/stderr
+else 
+	echo "Contamination calculations already done" > /dev/stderr
 fi
 
 
-echo "Contamination Done" > /dev/stderr
+
 
 retvalue=""
 
 if [[ $umi == False ]]
 	then
-	for x in "$common"*.fastq
-		do 
-		if [[ "$x" == ^Trimmed ]]
-			then continue	
-		elif [[ $(head "$x" | awk 'NR==2{if (length($1)%50==0) print 1;else print 0;exit}') -eq 1 ]]
-			then echo trimming AGGG > /dev/stderr
-			pieces=$(echo "$cores" | awk '{if ($1<4) print 1; else print $1 - $1%4}')
-			lines=$(wc -l $x | awk -v p="$pieces" '{print $1/p}')
-			"$split" -l "$lines" "$x" split_
-			for chunck in split_*
-				do
-				umi_trim () {
+	umi_trim () {
 					awk '
 						NR%4==1{
 							name=$1
 						}
 						NR%4==2{
-							seq=substr($1,5)
+							seq=substr($1,10)
 							sub("^G{0,2}","",seq)
 						}
 						NR%4==3{
 							p=$1
 						}
 						NR%4==0{
-							seq_q=substr($1,1+length($1)-length(seq)))
+							seq_q=substr($1,(1+length($1)-length(seq)))
 							printf "%s\n%s\n%s\n%s\n",name,seq,p,seq_q > "Trimmed_"FILENAME}END{print FILENME" done"> "/dev/stderr"
 						}' "$1"
 				}
-				echo umi_trim "$chunk" >> commands.txt
+	echo "UMI == False, Trimming AGGG" > /dev/stderr
+	for x in "$common"*.fastq
+		do 
+		if [[ "$x" == ^Trimmed ]]
+			then continue	
+		else 
+			echo trimming AGGG > /dev/stderr
+			#pieces=$(echo "$cores" | awk '{if ($1<4) print 1; else print $1 - $1%4}')
+			#lines=$(wc -l $x | awk -v p="$pieces" '{print $1/p}')
+			#"$split" -l "$lines" "$x" split_
+			awk '
+                    BEGIN{
+                        n=0
+                        core='$cores'
+                    }
+                    ENDFILE{ if (FNR==NR)
+                        cores=core-1
+                        f=sprintf("%d",(FNR/4)/cores)
+                    }
+                    FNR==NR{next}
+                    {
+                        print $x > "split_"n
+                    }
+                    FNR%(f*4)==0{
+                        n++
+                    }
+            ' $x $x
+			for chunk in split_*
+				do
+					echo umi_trim "$chunk" >> commands.txt
 			done
 			export -f umi_trim
 			~/FFPEcapseq/bin/queue commands.txt "$cores"
@@ -114,19 +137,44 @@ if [[ $umi == False ]]
 	for x in "$common"*.fastq
 		do \rm -r "$x"
 	done
+
 elif [[ -z $umi || $umi == True ]]
 	then 
-	for x in "$common"*.fastq
+	echo "UMI == True, trimming and compressing" > /dev/stderr
+	for x in *"$common"*.fastq
 		do
-		if  [[ "$x" =~ ^UMI  ]]
-			then continue 
+		if  [[ "$x" =~ ^UMI || -e "UMI_$x" ]]
+			then 
+			if [[ ! $common =~ ^UMI ]]
+			then 
+				retvalue="UMI"
+			fi
+			echo "Already Treated $x" > /dev/stderr
+			continue 
 		#This step assumes a 9bp UMI and an AGGG on 5' end
-		elif  [[ $(head "$x" | awk 'NR==2{if (length($1)%50==0) print 1;else print 0;exit}') -eq 1 ]]
-			then echo "UMI demultiplexing..." > /dev/stderr
+		else 
+			echo "UMI demultiplexing..." > /dev/stderr
 			[[ -e commands.txt ]] && rm commands.txt
-			pieces=$(echo "$cores" | awk '{if ($1<4) print 1; else print $1 - $1%4}')
-			lines=$(wc -l $x | awk -v p="$pieces" '{print $1/p}')
-			"$split" -l "$lines" "$x" split_
+			awk '
+					BEGIN{
+						n=0
+						core='$cores'
+					}
+					ENDFILE{ if (FNR==NR)
+						cores=core-1
+						f=sprintf("%d",(FNR/4)/cores)
+					}
+					FNR==NR{next}
+					{
+						print $x > "split_"n
+					}
+					FNR%(f*4)==0{
+						n++
+					}
+			' $x $x
+			#pieces=$(echo "$cores" | awk '{if ($1<4) print 1; else print $1 - $1%4}')
+			#lines=$(wc -l $x | awk -v p="$pieces" '{printf "%i",$1/p}')
+			#"$split" -l "$lines" "$x" split_
 			for chunk in split_*
 			do
 				umi_trim () {
@@ -160,10 +208,11 @@ elif [[ -z $umi || $umi == True ]]
 		fi
 	done
 	for x in "$common"*.fastq;
-		do \rm -r "$x"
+		do [[ ! $common =~ ^UMI ]] && rm -r "$x"
 	done
 fi
 
+echo "Name change=$retvalue" > /dev/stderr
 
 echo $retvalue
 

@@ -7,7 +7,7 @@ UMI="$3"
 
 #gets complexity (positions / million), unique molecules (UMI + position), and total aligned reads.
 
-eval $(awk -v name="$name" -v OFMT=%0.1f -v CONVFMT=%0.1f -v FS="\t" '
+eval $(awk -v name="$name" -v OFMT=%0.1f -v CONVFMT=%0.1f -F "\t" '
 	BEGIN{comp=0}
 	$1!~"@"{
 		if($2!=4){
@@ -137,7 +137,7 @@ awk  '
 	}' ./"$name"/"$name"\_sorted_collapsed_refseq.sam > ./"$name"/"$name"\_collapsed_coverage.tab	
 
 
-UMI_per_million=$(awk '$1!~"^@" && $2 != 4 {split($1,a,"_");print a[2]}' "$name"/"$name"\_sorted.sam | python ~/FFPEcapseq/bin/UMI_capture_per_million.py)
+UMI_per_million=$(awk -F"\t" '$1!~"^@" && $2 != 4 {split($1,a,"_");print a[2]"_"$3"_"$4}' "$name"/"$name"\_sorted.sam | python ~/FFPEcapseq/bin/UMI_capture_per_million.py)
 
 awk  '
 	BEGIN{

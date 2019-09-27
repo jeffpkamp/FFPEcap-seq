@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH -t 48:00:00 -N 1 -n 2 -J FFPECAPSEQ --account=gertz-kp --partition=gertz-kp
 
 source "$HOME"/FFPEcapseq/bin/arg_parser.sh
 
@@ -18,23 +19,40 @@ Mandatory:
 	or a space separated list of fastqs belonging
 	to the same experiment
 
--g 	eneter a genome name. Default=hg19
-	options hg19,hg38, mm10, Scerv
+-g 	eneter a genome name.
+	options hg19, hg38, mm10, Scerv
 
 Optional:
--u	UMIs present, Default=True, 
+-u	UMIs present, Default:True, 
 	set to False if no UMIs
 
 -p	# of cores to use for parallel processes
 	type max for all physical cores, else enter 
 	number of cores to use.  Default:1
 
+-v	Set to True to see what the program is doing in 
+	more detail.  Default:""
+
 -get	y to get Genomes from FFPEcapseq repository 
 
 help_message
 }
 
-get_flags umi~-u:True genome=-g common=-c get_genomes~-get cores~-p:1
+get_flags verbose~-v umi~-u:True genome=-g common=-c get_genomes~-get cores~-p:1
+
+if [[ $verbose ]]
+	then 
+	echo "Setting verbose mode"
+	verbose=True
+	set -v 
+fi
+
+if [[ ! $SLURM_CPUS_ON_NODE ]]
+    then
+    echo submitting sbatch $0 -c $common -u $umi -p $cores -g $genome 
+	sbatch $0 -c $common -u $umi -p $cores -g $genome
+    exit
+fi
 
 
 if [[ $(uname -a) =~ Darwin ]]
@@ -44,7 +62,7 @@ if [[ $(uname -a) =~ Darwin ]]
 	available_cores=$(lscpu | awk '$0~"Core\\(s\\) per socket:"{C=$NF}$0~"Socket\\(s\\):"{S=$NF}END{print S*C}')
 fi
 
-if [[ $cores == "max" || $cores == "Max" || $cores -gt $available_cores ]]
+if [[ $(echo $cores | awk '{print tolower($1)}') == "max" || $cores -gt $available_cores ]]
 	then 
 	cores=$available_cores
 elif [[ $cores -gt 1 && $cores -lt $available_cores ]]
@@ -64,7 +82,15 @@ Cores: $cores
 
 UMI: $umi
 
+Verbose: $verbose
+
 settings
+[[ $verbose ]] && verbose="-v"
+echo common="$common" > .settings
+echo cores="$cores" >> .settings
+echo genome="$genome" >> .settings
+echo umi="$umi" >> .settings
+echo verbose="$verbose" >> .settings
 
 
 startdir=$(pwd)
@@ -132,7 +158,7 @@ fi
 ###############################
 
 echo unzipping, renaming, extracting UMIs etc...
-namechange=$(bash ~/FFPEcapseq/bin/pretreat.sh $common $umi $cores)
+namechange=$(bash $verbose ~/FFPEcapseq/bin/pretreat.sh $common $umi $cores)
 if [[ $? -ne 0 ]]
 	then 
 	echo pretreat failed
@@ -142,8 +168,8 @@ fi
 echo pretreat finished
 
 
-[[ -z $namecahnge ]] || common=$namechange\_$common
-echo $common
+[[ -z $namechange ]] || common=$namechange\_$common
+echo New common name=$common
 
 ###############################
 ###   Alignment of fastqs   ###
@@ -154,7 +180,7 @@ for x in $common*.fastq*
 	name=$(echo ${x##*/}| sed 's/\..*//g')
 	if [[ ! -e $name/$name\_sorted.sam || ! -e $name/$name\_sorted_refseq.sam ]]
 		then echo missing some alignements for $name, running bowtie
-		bash ~/FFPEcapseq/bin/bowtie.sh $x $genome $cores $umi
+		bash $verbose ~/FFPEcapseq/bin/bowtie.sh $x $genome $cores $umi
 		if [[ $? -ne 0 ]]
 			then
 			echo pretreat failed
@@ -169,7 +195,7 @@ done
 [[ -e commands.txt ]] && rm commands.txt
 for x in $common*
 	do if [[ -d $x ]]
-		then echo "bash ~/FFPEcapseq/bin/awkanalysis.sh $x $genome $umi" >> commands.txt 
+		then echo "bash $verbose ~/FFPEcapseq/bin/awkanalysis.sh $x $genome $umi" >> commands.txt 
 		if [[ $? -ne 0 ]]
 			then
 			echo pretreat failed > /dev/stderr
@@ -216,17 +242,17 @@ fi
 
 
 
-[[ -z $namechange ]] && nc="" || nc="$namechange\_"
+[[ -z $namechange ]] && nc="" || nc=$namechange\_
 awk '
 FNR==NR{
-        a['$nc'$1]=$2"\t"$3"\t"$4
+        a["'$nc'"$1]=$2"\t"$3"\t"$4
         next
         }
 FNR!=NR{
         if (FNR==1)
                 print $0"Concatemer %\tRev Primer %\tBoth %"
         else if ($1 in a)
-                print $0a[$1]
+                print $a[$1]
         else
                 print $0
 }
